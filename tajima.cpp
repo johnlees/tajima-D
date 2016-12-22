@@ -28,8 +28,8 @@ int main (int argc, char *argv[])
    boost::program_options::variables_map vm;
    if (argc == 1)
    {
-      std::cerr << "Usage: epistasis -b bacterial_snps_indels.csv.gz -h human_snps.csv.gz --struct all_structure\n\n"
-         << "For full option details run epistasis -h\n";
+      std::cerr << "Usage: tajima --snps snps.csv\n\n"
+         << "For full option details run tajima -h\n";
       return 0;
    }
    else if (parseCommandLine(argc, argv, vm))
@@ -37,129 +37,90 @@ int main (int argc, char *argv[])
       return 1;
    }
 
-   // Open human file to get number of samples
-   std::vector<std::string> human_variant;
-   if (vm.count("human"))
+   // Read in all variant lines
+   std::cerr << "Reading all variants in..." << std::endl;
+   std::vector<std::vector<int>> variants;
+   if (vm.count("snps"))
    {
-      igzstream human_in;
-      human_in.open(vm["human"].as<std::string>().c_str());
-      human_variant = readCsvLine(human_in);
+      ifstream file_in;
+      file_in.open(vm["snps"].as<std::string>().c_str());
+      while (file_in)
+      {
+         variants.push_back(readCsvLine(file_in));
+      }
    }
    else
    {
-      throw std::runtime_error("--human option is compulsory");
+      throw std::logic_error("--snps option is compulsory");
    }
 
-   size_t num_samples = human_variant.size();
-
-   // Read in all the bacterial variants (3Mb compressed - shouldn't be too bad
-   // in this form I hope)
-   std::cerr << "Reading in all bacterial variants" << std::endl;
-   igzstream bacterial_file;
-   bacterial_file.open(parameters.bact_file.c_str());
-
-   std::vector<Pair> all_pairs;
-   long int bact_line_nr = 1;
-   while (bacterial_file)
+   // Set up vector of samples
+   size_t num_samples = variants[0].size();
+   std::vector<Sample> samples;
+   samples.reserve(num_samples);
+   for (int i = 0; i < num_samples; i++)
    {
-      std::vector<std::string> bacterial_variant = readCsvLine(bacterial_file);
-      if (bacterial_file)
-      {
-         Pair bact_in(num_samples);
-         bact_in.add_y(bacterial_variant, bact_line_nr);
-
-         // Check MAF and missingness of this variant
-         std::tuple<double,double> mafs = bact_in.maf();
-         std::tuple<double,double> missings = bact_in.missing();
-         if (std::get<1>(mafs) > parameters.min_af && std::get<1>(mafs) < parameters.max_af && std::get<1>(missings) < parameters.missing)
-         {
-            if (use_mds)
-            {
-               bact_in.add_covar(mds);
-            }
-
-            // If set here will calculate logistic regression for all bacterial
-            // variants if covar provided.
-            // Alternative would be to do for only pairs passing chi-sq. Less
-            // efficient if many pairs passing.
-            set_null_ll(bact_in);
-
-            all_pairs.push_back(bact_in);
-         }
-
-         bact_line_nr++;
-      }
-      else
-      {
-         bact_line_nr--;
-         break;
-      }
+      Sample s(variants.size());
+      samples.push_back(s);
    }
 
-   // Write a header
-   std::cerr << "Starting association tests" << std::endl;
-
-   while (human_file)
+   // Transpose variants into samples
+   std::cerr << "Transposing..." << std::endl;
+   for (size_t var_it = 0; var_it < variants.size(); ++var_it)
    {
-      std::vector<std::string> human_variant;
-      human_variant.reserve(num_samples);
-      human_variant = readCsvLine(human_file);
-
-      if (human_file)
+      for (size_t samp_it = 0; samp_it < variants[var_it].size(); ++samp_it)
       {
-         // Test each human variant against every bacterial variant
-         for (auto it = all_pairs.begin(); it < all_pairs.end(); it++)
+         if (variants[var_it][samp_it] == 1)
          {
-            it->add_x(human_variant, human_line_nr);
-
-            // maf filter
-            std::tuple<double,double> mafs = it->maf();
-            std::tuple<double,double> missings = it->missing();
-            if (std::get<0>(mafs) > parameters.min_af && std::get<0>(mafs) < parameters.max_af && std::get<0>(missings) < parameters.missing)
-            {
-               it->chisq_p(chiTest(*it));
-               read_pairs++;
-
-               if (it->chisq_p() < parameters.chi_cutoff)
-               {
-                  doLogit(*it);
-
-                  // Likelihood ratio test
-                  it->p_val(likelihoodRatioTest(*it));
-
-                  tested_pairs++;
-                  if (it->p_val() < parameters.log_cutoff)
-                  {
-                     significant_pairs++;
-                  }
-               }
-
-               out_stream << *it << std::endl;
-            }
+            samples[samp_it].add_to_seq(1, var_it);
          }
-
-         if (parameters.chunk_end > 1 && human_line_nr >= parameters.chunk_end)
-         {
-            human_line_nr--;
-            break;
-         }
-         else
-         {
-            human_line_nr++;
-         }
-      }
-      else
-      {
-         break;
       }
    }
+
+   // Calculate D
+   std::cerr << "Calculating D..." << std::endl;
+   double d_tot = 0;
+   int d_tot = 0;
+   for (size_t i = 0; i < samples.size(); i++)
+   {
+      for (size_t j = i+1; j < samples.size(); j++)
+      {
+         d_sum += dot(samples[i].full_seq() - samples[j].full_seq(), samples[i].full_seq() - samples[j].full_seq())
+         d_tot++;
+      }
+   }
+
+   double k_hat = d_sum/d_tot;
+   double S = variants.size();
+
+   double a1, a2 = 0;
+   for (int i = 0; int i < num_samples - 1; i++)
+   {
+      a1 += 1/i;
+      a2 += 1/pow(i,2);
+   }
+
+   double b1 = (num_samples + 1)/(3*(num_samples - 1));
+   double b2 = 2*(pow(num_samples,2) + num_samples + 3)/(9*num_samples*(num_samples - 1));
+
+   double c1 = b1 - 1/a1;
+   double c2 = b2 - (num_samples + 2)/(a1*num_samples) + a2/pow(a1,2);
+
+   double e1 = c1/a1;
+   double e2 = c2/(pow(a1, 2) + a2);
+
+   double se = pow(e1*S + e2*S*(S-1), 0.5);
+
+   double D = (k_hat - S/a1)/se;
+
+   std::cout << D << std::endl;
 
    std::cerr << "Done.\n";
 }
 
-std::vector<std::string> readCsvLine(std::istream& is)
+std::vector<int> readCsvLine(std::istream& is)
 {
-   std::vector<std::string> variant;
+   std::vector<int> variant;
    std::string line;
    std::getline(is, line);
 
@@ -168,7 +129,14 @@ std::vector<std::string> readCsvLine(std::istream& is)
 
    while(std::getline(line_stream, value, ','))
    {
-      variant.push_back(value);
+      if (value == "1")
+      {
+         variant.push_back(1);
+      }
+      else
+      {
+         variant.push_back(0);
+      }
    }
    return variant;
 }
