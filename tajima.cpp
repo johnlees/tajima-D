@@ -23,9 +23,6 @@ int main (int argc, char *argv[])
    // example command to generate input
    // bcftools norm -r FM211187:186-1547 -m - /lustre/scratch108/bacteria/jl11/mappings/23FSpn_new/recalibrated.snps.indels.vcf.gz | bcftools query -f '[%GT,]\n' | sed 's/,$//'
 
-   // Program description
-   std::cerr << "tajima: calculate tajima's D from bcftools query output\n";
-
    // Do parsing and checking of command line params
    // If no input options, give quick usage rather than full help
    boost::program_options::variables_map vm;
@@ -38,6 +35,12 @@ int main (int argc, char *argv[])
    else if (parseCommandLine(argc, argv, vm))
    {
       return 1;
+   }
+
+   // Program description
+   if (vm.count("verbose"))
+   {
+      std::cerr << "tajima: calculate tajima's D from bcftools query output\n";
    }
 
    // Read in all variant lines
