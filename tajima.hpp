@@ -33,7 +33,7 @@ extern const std::string VERSION;
 // Function headers for each cpp file
 
 // tajima.cpp
-std::vector<std::string> readCsvLine(std::istream& is);
+std::vector<int> readCsvLine(std::istream& is);
 
 // cmdLine.cpp
 int parseCommandLine (int argc, char *argv[], boost::program_options::variables_map& vm);

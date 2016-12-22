@@ -42,7 +42,7 @@ int main (int argc, char *argv[])
    std::vector<std::vector<int>> variants;
    if (vm.count("snps"))
    {
-      ifstream file_in;
+      std::ifstream file_in;
       file_in.open(vm["snps"].as<std::string>().c_str());
       while (file_in)
       {
@@ -58,7 +58,7 @@ int main (int argc, char *argv[])
    size_t num_samples = variants[0].size();
    std::vector<Sample> samples;
    samples.reserve(num_samples);
-   for (int i = 0; i < num_samples; i++)
+   for (size_t i = 0; i < num_samples; i++)
    {
       Sample s(variants.size());
       samples.push_back(s);
@@ -79,13 +79,13 @@ int main (int argc, char *argv[])
 
    // Calculate D
    std::cerr << "Calculating D..." << std::endl;
-   double d_tot = 0;
+   double d_sum = 0;
    int d_tot = 0;
    for (size_t i = 0; i < samples.size(); i++)
    {
       for (size_t j = i+1; j < samples.size(); j++)
       {
-         d_sum += dot(samples[i].full_seq() - samples[j].full_seq(), samples[i].full_seq() - samples[j].full_seq())
+         d_sum += dot(samples[i].full_seq() - samples[j].full_seq(), samples[i].full_seq() - samples[j].full_seq());
          d_tot++;
       }
    }
@@ -94,7 +94,7 @@ int main (int argc, char *argv[])
    double S = variants.size();
 
    double a1, a2 = 0;
-   for (int i = 0; int i < num_samples - 1; i++)
+   for (size_t i = 0; i < num_samples - 1; i++)
    {
       a1 += 1/i;
       a2 += 1/pow(i,2);

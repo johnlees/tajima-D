@@ -24,7 +24,7 @@ class Sample
       Sample(size_t num_vars) {  _seq.zeros(num_vars); };
 
       // nonmodifying operations
-      long int full_seq() const { return _seq; }
+      arma::vec full_seq() const { return _seq; }
 
       // Modifying operations
       void set_seq(arma::vec full_seq) { _seq = full_seq; }

@@ -16,7 +16,7 @@ CPPFLAGS=-I$(PREFIX)/include
 
 PROGRAMS=tajima
 
-OBJECTS=var.o cmdLine.o tajima.o
+OBJECTS=cmdLine.o tajima.o
 
 all: $(PROGRAMS)
 
@@ -28,7 +28,7 @@ install: all
 	install $(PROGRAMS) $(BINDIR)
 
 tajima: $(OBJECTS)
-	$(LINK.cpp) $^ $(EPI_LDLIBS) -o $@
+	$(LINK.cpp) $^ $(D_LDLIBS) -o $@
 
 .PHONY: all clean install
 
