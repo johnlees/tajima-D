@@ -19,6 +19,9 @@ int main (int argc, char *argv[])
    // For each variant line, add any ones into relevant sample at correct
    // positon
    // Using full sample objects, calculate Tajima's D
+   //
+   // example command to generate input
+   // bcftools norm -r FM211187:186-1547 -m - /lustre/scratch108/bacteria/jl11/mappings/23FSpn_new/recalibrated.snps.indels.vcf.gz | bcftools query -f '[%GT,]\n' | sed 's/,$//'
 
    // Program description
    std::cerr << "tajima: calculate tajima's D from bcftools query output\n";
@@ -38,7 +41,10 @@ int main (int argc, char *argv[])
    }
 
    // Read in all variant lines
-   std::cerr << "Reading all variants in..." << std::endl;
+   if (vm.count("verbose"))
+   {
+      std::cerr << "Reading all variants in..." << std::endl;
+   }
    std::vector<std::vector<int>> variants;
    if (vm.count("snps"))
    {
@@ -65,7 +71,10 @@ int main (int argc, char *argv[])
    }
 
    // Transpose variants into samples
-   std::cerr << "Transposing..." << std::endl;
+   if (vm.count("verbose"))
+   {
+      std::cerr << "Transposing..." << std::endl;
+   }
    for (size_t var_it = 0; var_it < variants.size(); ++var_it)
    {
       for (size_t samp_it = 0; samp_it < variants[var_it].size(); ++samp_it)
@@ -78,7 +87,11 @@ int main (int argc, char *argv[])
    }
 
    // Calculate D
-   std::cerr << "Calculating D..." << std::endl;
+   // https://en.wikipedia.org/wiki/Tajima's_D#Mathematical_details
+   if (vm.count("verbose"))
+   {
+      std::cerr << "Calculating D..." << std::endl;
+   }
    double d_sum = 0;
    int d_tot = 0;
    for (size_t i = 0; i < samples.size(); i++)
@@ -93,8 +106,8 @@ int main (int argc, char *argv[])
    double k_hat = d_sum/d_tot;
    double S = variants.size();
 
-   double a1, a2 = 0;
-   for (size_t i = 0; i < num_samples - 1; i++)
+   double a1 = 0, a2 = 0;
+   for (size_t i = 1; i <= num_samples - 1; i++)
    {
       a1 += 1/i;
       a2 += 1/pow(i,2);
@@ -115,7 +128,10 @@ int main (int argc, char *argv[])
 
    std::cout << D << std::endl;
 
-   std::cerr << "Done.\n";
+   if (vm.count("verbose"))
+   {
+      std::cerr << "Done.\n";
+   }
 }
 
 std::vector<int> readCsvLine(std::istream& is)

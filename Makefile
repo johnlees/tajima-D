@@ -5,7 +5,7 @@ BINDIR=$(PREFIX)/bin
 # Intel compiler - uncomment if you have icpc and mkl.
 #CXX=icpc
 #CXXFLAGS=-Wall -O3 -parallel -ipo -std=c++11
-#D_LDLIBS=-Lgzstream -L$(PREFIX)/lib -larmadillo -lboost_program_options -mkl
+#D_LDLIBS=-L$(PREFIX)/lib -larmadillo -lboost_program_options -mkl
 # gcc
 #CXXFLAGS=-Wall -O3 -std=c++11
 # gcc test
