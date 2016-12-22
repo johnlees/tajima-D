@@ -1,46 +1,27 @@
 /*
- * File: epistasis.cpp
+ * File: tajima.cpp
  *
- * Main control loop for epistasis
+ * Main control loop for tajima
  *
  */
 
-#include "epistasis.hpp"
+#include "tajima.hpp"
 
 // Constants
 const std::string VERSION = "0.1";
 //    Default options
-const std::string maf_default = "0.05";
-const std::string missing_default = "0.05";
-const std::string chisq_default = "1";
-const std::string pval_default = "1";
-const double convergence_limit = 10e-8;
-const unsigned int max_nr_iterations = 1000;
-const double se_limit = 3;
-
-// Starting value for beta vectors (except intercept)
-// Should be >0. This value is based on RMS in example study
-const double bfgs_start_beta = 1;
 
 int main (int argc, char *argv[])
 {
-   // Read line of file to get size
    // Read cmd line options and process
-   // Open the struct object, check size ok
-   // Make a new pair obj to be used throughout, set covars
-   // Open the human file, read through until required chunk
-   // Read in all the bacterial variants
-   // Read a human line (define sub to do this here) - outer loop
-   // Set x
-   // Set y - inner loop
-   // Check maf filter
-   // Run chisq test, check filter
-   // Run logistic test
-   // Print results
-   // Set a new y (automatically resets stats)
+   // Read in all variant lines, store positions of 1s in vector for each line
+   // Create N Sample objects, with var size
+   // For each variant line, add any ones into relevant sample at correct
+   // positon
+   // Using full sample objects, calculate Tajima's D
 
    // Program description
-   std::cerr << "epistasis: pairwise correlations between variants in two populations\n";
+   std::cerr << "tajima: calculate tajima's D from bcftools query output\n";
 
    // Do parsing and checking of command line params
    // If no input options, give quick usage rather than full help
@@ -70,51 +51,6 @@ int main (int argc, char *argv[])
    }
 
    size_t num_samples = human_variant.size();
-
-   // Error check command line options
-   cmdOptions parameters = verifyCommandLine(vm, num_samples);
-
-   // Get mds values
-   arma::mat mds;
-   int use_mds = 0;
-   if (fileStat(parameters.struct_file))
-   {
-      mds.load(parameters.struct_file);
-
-      if (mds.n_rows != num_samples)
-      {
-         throw std::runtime_error("Number of rows in MDS matrix does not match number of samples");
-      }
-      else
-      {
-         use_mds = 1;
-         std::cerr << "WARNING: Struct file loaded. IT IS UP TO YOU to make sure the order of samples is the same as in each matrix\n";
-      }
-   }
-
-   // Open the human variant ifstream, and read through until the required
-   // block is reached
-   igzstream human_file;
-   human_file.open(parameters.human_file.c_str());
-
-   long int human_line_nr = 1;
-   if (parameters.chunk_start > 1 && parameters.chunk_end > 1)
-   {
-      if (parameters.chunk_start >= parameters.chunk_end)
-      {
-         throw std::runtime_error("chunk start greater than or equal to chunk end");
-      }
-      else
-      {
-         std::cerr << "Reading to chunk position: line " << parameters.chunk_start << std::endl;
-         std::string line;
-         for (int i = 0; i < parameters.chunk_start - 1; i++)
-         {
-            std::getline(human_file, line);
-            human_line_nr++;
-         }
-      }
-   }
 
    // Read in all the bacterial variants (3Mb compressed - shouldn't be too bad
    // in this form I hope)
@@ -163,21 +99,6 @@ int main (int argc, char *argv[])
    // Write a header
    std::cerr << "Starting association tests" << std::endl;
 
-   ogzstream out_stream;
-   out_stream.open((parameters.output_file + ".gz").c_str());
-   if (out_stream.good())
-   {
-      std::string header = "human_line\tbact_line\thuman_af\tbacterial_af\tchisq_p_val\tlogistic_p_val\tbeta\tcomments";
-      out_stream << header << std::endl;
-   }
-   else
-   {
-      throw std::runtime_error("Could not write to output file " + parameters.output_file + ".gz");
-   }
-
-   long int read_pairs = 0;
-   long int tested_pairs = 0;
-   long int significant_pairs = 0;
    while (human_file)
    {
       std::vector<std::string> human_variant;
@@ -233,10 +154,6 @@ int main (int argc, char *argv[])
       }
    }
 
-   std::cerr << "Processed " << human_line_nr * bact_line_nr << " total pairs. Of these:\n";
-   std::cerr << "\tPassed maf filter:\t\t" << read_pairs << std::endl;
-   std::cerr << "\tPassed chi^2 filter:\t\t" << tested_pairs << std::endl;
-   std::cerr << "\tPassed p-val (logistic) filter:\t" << significant_pairs << std::endl;
    std::cerr << "Done.\n";
 }
 

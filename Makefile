@@ -5,18 +5,18 @@ BINDIR=$(PREFIX)/bin
 # Intel compiler - uncomment if you have icpc and mkl.
 #CXX=icpc
 #CXXFLAGS=-Wall -O3 -parallel -ipo -std=c++11
-#EPI_LDLIBS=-Lgzstream -L$(PREFIX)/lib -lhdf5 -lgzstream -lz -larmadillo -lboost_program_options -mkl
+#D_LDLIBS=-Lgzstream -L$(PREFIX)/lib -larmadillo -lboost_program_options -mkl
 # gcc
 #CXXFLAGS=-Wall -O3 -std=c++11
 # gcc test
 CXXFLAGS=-Wall -g -O0 -std=c++11
-EPI_LDLIBS=-Lgzstream -L$(PREFIX)/lib -lhdf5 -lgzstream -lz -larmadillo -lboost_program_options -llapack -lblas
+D_LDLIBS=-L$(PREFIX)/lib -larmadillo -lboost_program_options -llapack -lblas
 
-CPPFLAGS=-I$(PREFIX)/include -Igzstream -Idlib -I/usr/local/hdf5/include -D DLIB_NO_GUI_SUPPORT=1 -D DLIB_USE_BLAS=1 -D DLIB_USE_LAPACK=1 -DARMA_USE_HDF5=1
+CPPFLAGS=-I$(PREFIX)/include
 
-PROGRAMS=epistasis
+PROGRAMS=tajima
 
-OBJECTS=fisher.o pair.o logitFunction.o stats.o logisticRegression.o common.o cmdLine.o epistasis.o
+OBJECTS=var.o cmdLine.o tajima.o
 
 all: $(PROGRAMS)
 
@@ -27,11 +27,8 @@ install: all
 	install -d $(BINDIR)
 	install $(PROGRAMS) $(BINDIR)
 
-epistasis: $(OBJECTS)
+tajima: $(OBJECTS)
 	$(LINK.cpp) $^ $(EPI_LDLIBS) -o $@
-
-fisher.o:
-	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c -o $@ stats/fisher.c
 
 .PHONY: all clean install
 
