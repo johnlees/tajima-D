@@ -21,7 +21,7 @@ int main (int argc, char *argv[])
    // Using full sample objects, calculate Tajima's D
    //
    // example command to generate input
-   // bcftools norm -r FM211187:186-1547 -m - /lustre/scratch108/bacteria/jl11/mappings/23FSpn_new/recalibrated.snps.indels.vcf.gz | bcftools query -f '[%GT,]\n' | sed 's/,$//'
+   // bcftools norm -f PASS -r FM211187:186-1547 -m - /lustre/scratch108/bacteria/jl11/mappings/23FSpn_new/recalibrated.snps.indels.vcf.gz | bcftools query -f '[%GT,]\n' | sed 's/,$//'
 
    // Do parsing and checking of command line params
    // If no input options, give quick usage rather than full help
@@ -108,6 +108,19 @@ int main (int argc, char *argv[])
 
    double k_hat = d_sum/d_tot;
    double S = variants.size();
+
+   // Override segregating sites. If multiallelics are present the default will
+   // overcount them
+   if (vm.count("seg_sites"))
+   {
+      S = vm["seg_sites"].as<double>();
+   }
+
+   if (vm.count("verbose"))
+   {
+      std::cerr << "k_hat: " << k_hat << std::endl;
+      std::cerr << "S: " << S << std::endl;
+   }
 
    double a1 = 0, a2 = 0;
    for (size_t i = 1; i <= num_samples - 1; i++)
