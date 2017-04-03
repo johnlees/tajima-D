@@ -125,11 +125,11 @@ int main (int argc, char *argv[])
    double a1 = 0, a2 = 0;
    for (size_t i = 1; i <= num_samples - 1; i++)
    {
-      a1 += 1/i;
+      a1 += pow(i,-1);
       a2 += 1/pow(i,2);
    }
 
-   double b1 = (num_samples + 1)/(3*(num_samples - 1));
+   double b1 = ((double)num_samples + 1)/(3*(num_samples - 1));
    double b2 = 2*(pow(num_samples,2) + num_samples + 3)/(9*num_samples*(num_samples - 1));
 
    double c1 = b1 - 1/a1;

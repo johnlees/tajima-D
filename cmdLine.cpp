@@ -19,7 +19,7 @@ int parseCommandLine (int argc, char *argv[], po::variables_map& vm)
    //Required options
    po::options_description required("Required options");
    required.add_options()
-    ("snps,s", po::value<std::string>()->required(), "input snps from bcftools query")
+    ("snps,s", po::value<std::string>()->required(), "input snps from bcftools query");
 
    po::options_description other("Other options");
    other.add_options()
