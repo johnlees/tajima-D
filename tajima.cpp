@@ -21,7 +21,7 @@ int main (int argc, char *argv[])
    // Using full sample objects, calculate Tajima's D
    //
    // example command to generate input
-   // bcftools norm -f PASS -r FM211187:186-1547 -m - /lustre/scratch108/bacteria/jl11/mappings/23FSpn_new/recalibrated.snps.indels.vcf.gz | bcftools query -f '[%GT,]\n' | sed 's/,$//'
+   // bcftools view -f PASS -r FM211187:186-1547 /lustre/scratch108/bacteria/jl11/mappings/23FSpn_new/recalibrated.snps.indels.vcf.gz | bcftools norm -m - | bcftools query -f '[%GT,]\n' | sed 's/,$//'
 
    // Do parsing and checking of command line params
    // If no input options, give quick usage rather than full help
