@@ -122,7 +122,7 @@ if ($idx > scalar(@D_permute_order)/2)
    $idx = scalar(@D_permute_order) - $idx;
 }
 
-my $pval = $idx/scalar(@D_permute_order);
+my $pval = 2*$idx/scalar(@D_permute_order);
 
 print join("\t", $case_D, $control_D, $diff_D, $pval) . "\n";
 
