@@ -28,7 +28,7 @@ class Sample
 
       // Modifying operations
       void set_seq(arma::vec full_seq) { _seq = full_seq; }
-      void add_to_seq(double var, size_t pos) { _seq[pos] = var; } // defined in sample.cpp
+      void add_to_seq(double var, size_t pos) { _seq[pos] = var; }
 
    private:
       arma::vec _seq;

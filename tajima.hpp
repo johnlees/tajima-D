@@ -34,6 +34,7 @@ extern const std::string VERSION;
 
 // tajima.cpp
 std::vector<int> readCsvLine(std::istream& is);
+double calc_D(const std::vector<Sample>& samples, const std::vector<long int>& positions, const int verbose);
 
 // cmdLine.cpp
 int parseCommandLine (int argc, char *argv[], boost::program_options::variables_map& vm);

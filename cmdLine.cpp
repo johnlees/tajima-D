@@ -23,7 +23,8 @@ int parseCommandLine (int argc, char *argv[], po::variables_map& vm)
 
    po::options_description other("Other options");
    other.add_options()
-    ("seg_sites", po::value<double>(), "number of segregating sites, from bcftools view -H | wc -l")
+    ("null", po::value<long int>(), "generate this many null permutations")
+    ("null_subsamples", po::value<int>(), "use this many subsamples")
     ("verbose,v", "display progress")
     ("version", "prints version and exits")
     ("help,h", "full help message");
