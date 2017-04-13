@@ -13,15 +13,8 @@ const std::string VERSION = "0.2";
 
 int main (int argc, char *argv[])
 {
-   // Read cmd line options and process
-   // Read in all variant lines, store positions of 1s in vector for each line
-   // Create N Sample objects, with var size
-   // For each variant line, add any ones into relevant sample at correct
-   // positon
-   // Using full sample objects, calculate Tajima's D
-   //
    // example command to generate input
-   // bcftools view -f PASS -r FM211187:186-1547 /lustre/scratch108/bacteria/jl11/mappings/23FSpn_new/recalibrated.snps.indels.vcf.gz | bcftools norm -m - | bcftools query -f '[%GT,]\n' | sed 's/,$//'
+   // bcftools view -f PASS -r <region> <vcf_file> | bcftools norm -m - | bcftools view -e 'ALT[*]=="*"' | bcftools query -f '%POS,[%GT,]\n' | sed 's/,$//' > input.csv
 
    // Do parsing and checking of command line params
    // If no input options, give quick usage rather than full help
@@ -56,9 +49,18 @@ int main (int argc, char *argv[])
       file_in.open(vm["snps"].as<std::string>().c_str());
       while (file_in)
       {
-         auto variant = readCsvLine(file_in);
-         positions.push_back(std::get<0>(variant));
-         variants.push_back(std::get<1>(variant));
+         std::string line;
+         std::getline(file_in, line);
+         if (file_in.good())
+         {
+            std::tuple<long int,std::vector<int>> variant = readCsvLine(line);
+            positions.push_back(std::get<0>(variant));
+            variants.push_back(std::get<1>(variant));
+         }
+         else
+         {
+            break;
+         }
       }
    }
    else
@@ -66,28 +68,20 @@ int main (int argc, char *argv[])
       throw std::logic_error("--snps option is compulsory");
    }
 
-   // Set up vector of samples
-   size_t num_samples = variants[0].size();
-   std::vector<Sample> samples;
-   samples.reserve(num_samples);
-   for (size_t i = 0; i < num_samples; i++)
-   {
-      Sample s(variants.size());
-      samples.push_back(s);
-   }
-
    // Transpose variants into samples
    if (vm.count("verbose"))
    {
       std::cerr << "Transposing..." << std::endl;
    }
+
+   arma::mat alignment(variants[0].size(), variants.size(), arma::fill::zeros);
    for (size_t var_it = 0; var_it < variants.size(); ++var_it)
    {
       for (size_t samp_it = 0; samp_it < variants[var_it].size(); ++samp_it)
       {
          if (variants[var_it][samp_it] == 1)
          {
-            samples[samp_it].add_to_seq(1, var_it);
+            alignment(samp_it, var_it) = 1;
          }
       }
    }
@@ -100,22 +94,58 @@ int main (int argc, char *argv[])
    // Run permutations subsampling from collection to generate null D
    if (vm.count("null_subsamples") && vm.count("null"))
    {
+      std::default_random_engine generator;
+
       for (long int permutation = 0; permutation < vm["null"].as<long int>(); ++permutation)
       {
          // Generate random sample indices
-         arma::uvec sampled_indices(vm["null_subsamples"].as<int>());
-         for (int i = 0; i < sampled_indices.n_elem; i++)
+         arma::uvec sampled_indices(vm["null_subsamples"].as<int>(), arma::fill::zeros);
+         for (unsigned int i = 0; i < sampled_indices.n_elem; ++i)
          {
             sampled_indices(i) = i;
          }
-         std::cerr << "implementation not yet finished" << std::endl;
+         for (unsigned int i = sampled_indices.n_elem; i < alignment.n_rows; ++i)
+         {
+            std::uniform_int_distribution<int> distribution(0, i);
+            unsigned int idx = distribution(generator);
+            if (idx < sampled_indices.n_elem)
+            {
+               sampled_indices(idx) = i;
+            }
+         }
+
+         // Take a slice from the alignment, remove any non-segregating sites
+         arma::mat sub_alignment = alignment.rows(sampled_indices);
+
+         arma::rowvec af = sum(sub_alignment, 0);
+         int idx = 0;
+         std::vector<long int> sub_pos;
+         arma::uvec seg_sites(af.n_elem);
+         for (unsigned int site = 0; site < af.n_elem; ++site)
+         {
+            if (af(site) > 0 && af(site) < sampled_indices.n_elem)
+            {
+               seg_sites[idx] = site;
+               sub_pos.push_back(positions[site]);
+               idx++;
+            }
+         }
+
+         if (sub_pos.size() < sub_alignment.n_cols)
+         {
+            seg_sites = seg_sites.subvec(0, sub_pos.size() - 1);
+            sub_alignment = sub_alignment.cols(seg_sites);
+         }
+
+         double D = calc_D(sub_alignment, sub_pos, vm.count("verbose"));
+         std::cout << std::fixed << std::setprecision(5) << D << std::endl;
       }
    }
    // Normal mode, just report D
    else
    {
-      double D = calc_D(samples, positions, vm.count("verbose"));
-      std::cout << D << std::endl;
+      double D = calc_D(alignment, positions, vm.count("verbose"));
+      std::cout << std::fixed << std::setprecision(5) << D << std::endl;
    }
 
    if (vm.count("verbose"))
@@ -124,17 +154,15 @@ int main (int argc, char *argv[])
    }
 }
 
-std::tuple<long int,std::vector<int>> readCsvLine(std::istream& is)
+std::tuple<long int,std::vector<int>> readCsvLine(std::string& line)
 {
    std::vector<int> variant;
-   std::string line;
-   std::getline(is, line);
 
    std::stringstream line_stream(line);
    std::string value;
 
    std::getline(line_stream, value, ',');
-   long int position = value;
+   long int position = std::stoi(value);
    while(std::getline(line_stream, value, ','))
    {
       if (value == "1")
@@ -149,19 +177,19 @@ std::tuple<long int,std::vector<int>> readCsvLine(std::istream& is)
    return std::make_tuple(position, variant);
 }
 
-double calc_D(const std::vector<Sample>& samples, const std::vector<long int>& positions, const int verbose)
+double calc_D(const arma::mat& alignment, std::vector<long int>& positions, const int verbose)
 {
    // Calculate k_hat
    // https://en.wikipedia.org/wiki/Tajima's_D#Mathematical_details
-   size_t num_samples = samples.size();
+   size_t num_samples = alignment.n_rows;
 
    double d_sum = 0;
    int d_tot = 0;
-   for (size_t i = 0; i < samples.size(); i++)
+   for (size_t i = 0; i < num_samples; i++)
    {
-      for (size_t j = i+1; j < samples.size(); j++)
+      for (size_t j = i+1; j < num_samples; j++)
       {
-         d_sum += dot(samples[i].full_seq() - samples[j].full_seq(), samples[i].full_seq() - samples[j].full_seq());
+         d_sum += dot(alignment.row(i) - alignment.row(j), alignment.row(i) - alignment.row(j));
          d_tot++;
       }
    }
@@ -169,7 +197,7 @@ double calc_D(const std::vector<Sample>& samples, const std::vector<long int>& p
    double k_hat = d_sum/d_tot;
 
    // Calculate S
-   auto unique_sites = std::unique (positions.begin(), positions.end());
+   auto unique_sites = std::unique(positions.begin(), positions.end());
    double S = std::distance(positions.begin(), unique_sites);
 
    if (verbose)

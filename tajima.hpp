@@ -7,12 +7,15 @@
 
 // C/C++/C++11 headers
 #include <iostream>
+#include <iomanip>
 #include <fstream>
 #include <cmath>
 #include <cstdlib>
 #include <string>
 #include <algorithm>
 #include <iterator>
+#include <tuple>
+#include <random>
 #include <vector>
 #include <exception>
 #include <sys/stat.h>
@@ -24,17 +27,14 @@
 #define ARMA_DONT_PRINT_ERRORS
 #include <armadillo>
 
-// Classes
-#include "sample.hpp"
-
 // Constants
 extern const std::string VERSION;
 
 // Function headers for each cpp file
 
 // tajima.cpp
-std::vector<int> readCsvLine(std::istream& is);
-double calc_D(const std::vector<Sample>& samples, const std::vector<long int>& positions, const int verbose);
+std::tuple<long int,std::vector<int>> readCsvLine(std::string& line);
+double calc_D(const arma::mat& alignment, std::vector<long int>& positions, const int verbose);
 
 // cmdLine.cpp
 int parseCommandLine (int argc, char *argv[], boost::program_options::variables_map& vm);
