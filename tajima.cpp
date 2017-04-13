@@ -114,31 +114,25 @@ int main (int argc, char *argv[])
             }
          }
 
-         // Take a slice from the alignment, remove any non-segregating sites
-         arma::mat sub_alignment = alignment.rows(sampled_indices);
-
-         arma::rowvec af = sum(sub_alignment, 0);
-         int idx = 0;
-         std::vector<long int> sub_pos;
-         arma::uvec seg_sites(af.n_elem);
-         for (unsigned int site = 0; site < af.n_elem; ++site)
+         sampled_indices = sort(sampled_indices);
+         arma::uvec unsampled_indices(alignment.n_rows - sampled_indices.n_elem, arma::fill::zeros);
+         unsigned int j = 0, k = 0;
+         for (unsigned int i = 0; i < alignment.n_rows; ++i)
          {
-            if (af(site) > 0 && af(site) < sampled_indices.n_elem)
+            if (sampled_indices(j) != i)
             {
-               seg_sites[idx] = site;
-               sub_pos.push_back(positions[site]);
-               idx++;
+               unsampled_indices(k) = i;
+               k++;
+            }
+            else if (j < sampled_indices.n_elem - 1) // Don't go over the end of sampled vector
+            {
+               j++;
             }
          }
 
-         if (sub_pos.size() < sub_alignment.n_cols)
-         {
-            seg_sites = seg_sites.subvec(0, sub_pos.size() - 1);
-            sub_alignment = sub_alignment.cols(seg_sites);
-         }
-
-         double D = calc_D(sub_alignment, sub_pos, vm.count("verbose"));
-         std::cout << std::fixed << std::setprecision(5) << D << std::endl;
+         double D_diff = D_subsample(alignment, sampled_indices, positions, vm.count("verbose"))
+                         - D_subsample(alignment, unsampled_indices, positions, vm.count("verbose"));
+         std::cout << std::fixed << std::setprecision(5) << D_diff << std::endl;
       }
    }
    // Normal mode, just report D
@@ -176,6 +170,36 @@ std::tuple<long int,std::vector<int>> readCsvLine(std::string& line)
    }
    return std::make_tuple(position, variant);
 }
+
+double D_subsample(const arma::mat& alignment, const arma::uvec& sampled_indices, const std::vector<long int>& positions, const int verbose)
+{
+   // Take a slice from the alignment, remove any non-segregating sites
+   arma::mat sub_alignment = alignment.rows(sampled_indices);
+
+   arma::rowvec af = sum(sub_alignment, 0);
+   int idx = 0;
+   std::vector<long int> sub_pos;
+   arma::uvec seg_sites(af.n_elem);
+   for (unsigned int site = 0; site < af.n_elem; ++site)
+   {
+      if (af(site) > 0 && af(site) < sampled_indices.n_elem)
+      {
+         seg_sites[idx] = site;
+         sub_pos.push_back(positions[site]);
+         idx++;
+      }
+   }
+
+   if (sub_pos.size() < sub_alignment.n_cols)
+   {
+      seg_sites = seg_sites.subvec(0, sub_pos.size() - 1);
+      sub_alignment = sub_alignment.cols(seg_sites);
+   }
+
+   double D = calc_D(sub_alignment, sub_pos, verbose);
+   return D;
+}
+
 
 double calc_D(const arma::mat& alignment, std::vector<long int>& positions, const int verbose)
 {
