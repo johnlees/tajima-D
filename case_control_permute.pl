@@ -33,11 +33,20 @@ sub run_tajima
    $line_in =~ m/^Lines total\/modified\/skipped:\s+(\d+)\/(\d+)\/(\d+)$/;
 
    my $seg_sites = $1 - $3;
-   my $bcftools_command2 = "bcftools view -e 'ALT[*]==\"*\"' $norm_tmp | bcftools query -f '[%GT,]\n' | sed 's/,\$//' > $input_tmp";
-   system($bcftools_command2);
+   my $tajima_D = 0;
+   if ($seg_sites > 0)
+   {
+      if ($seg_sites < 3)
+      {
+         print STDERR "low seg sites: $seg_sites\n";
+      }
 
-   my $tajima_D = `~/installations/tajima-D/tajima -s $input_tmp --seg_sites $seg_sites`;
-   chomp $tajima_D;
+      my $bcftools_command2 = "bcftools view -e 'ALT[*]==\"*\"' $norm_tmp | bcftools query -f '[%GT,]\n' | sed 's/,\$//' > $input_tmp";
+      system($bcftools_command2);
+
+      $tajima_D = `~/installations/tajima-D/tajima -s $input_tmp --seg_sites $seg_sites`;
+      chomp $tajima_D;
+   }
 
    unlink $norm_tmp, $norm_err_tmp, $input_tmp;
    return($tajima_D)
