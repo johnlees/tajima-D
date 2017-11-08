@@ -8,7 +8,7 @@
 #include "tajima.hpp"
 
 // Constants
-const std::string VERSION = "0.2";
+const std::string VERSION = "0.3";
 //    Default options
 
 int main (int argc, char *argv[])
@@ -91,6 +91,8 @@ int main (int argc, char *argv[])
       std::cerr << "Calculating D..." << std::endl;
    }
 
+   size_t num_samples = alignment.n_rows;
+   arma::mat pairwise_distances = dist_mat(alignment);
    // Run permutations subsampling from collection to generate null D
    if (vm.count("null_subsamples") && vm.count("null"))
    {
@@ -130,15 +132,16 @@ int main (int argc, char *argv[])
             }
          }
 
-         double D_diff = D_subsample(alignment, sampled_indices, positions, vm.count("verbose"))
-                         - D_subsample(alignment, unsampled_indices, positions, vm.count("verbose"));
+         double D_diff = D_subsample(alignment, pairwise_distances, sampled_indices, positions, vm.count("verbose"))
+                         - D_subsample(alignment, pairwise_distances, unsampled_indices, positions, vm.count("verbose"));
          std::cout << std::fixed << std::setprecision(5) << D_diff << std::endl;
       }
    }
    // Normal mode, just report D
    else
    {
-      double D = calc_D(alignment, positions, vm.count("verbose"));
+      double k_hat = accu(pairwise_distances) / (num_samples * (num_samples - 1));
+      double D = calc_D(k_hat, num_samples, positions, vm.count("verbose"));
       std::cout << std::fixed << std::setprecision(5) << D << std::endl;
    }
 
@@ -171,10 +174,11 @@ std::tuple<long int,std::vector<int>> readCsvLine(std::string& line)
    return std::make_tuple(position, variant);
 }
 
-double D_subsample(const arma::mat& alignment, const arma::uvec& sampled_indices, const std::vector<long int>& positions, const int verbose)
+double D_subsample(const arma::mat& alignment, const arma::mat& distances, const arma::uvec& sampled_indices, const std::vector<long int>& positions, const int verbose)
 {
    // Take a slice from the alignment, remove any non-segregating sites
    arma::mat sub_alignment = alignment.rows(sampled_indices);
+   size_t num_samples = sub_alignment.n_rows;
 
    arma::rowvec af = sum(sub_alignment, 0);
    int idx = 0;
@@ -190,36 +194,33 @@ double D_subsample(const arma::mat& alignment, const arma::uvec& sampled_indices
       }
    }
 
-   if (sub_pos.size() < sub_alignment.n_cols)
-   {
-      seg_sites = seg_sites.subvec(0, sub_pos.size() - 1);
-      sub_alignment = sub_alignment.cols(seg_sites);
-   }
+   double k_hat = accu(distances(sampled_indices, sampled_indices)) / (num_samples * (num_samples - 1));
 
-   double D = calc_D(sub_alignment, sub_pos, verbose);
+   double D = calc_D(k_hat, num_samples, sub_pos, verbose);
    return D;
 }
 
-
-double calc_D(const arma::mat& alignment, std::vector<long int>& positions, const int verbose)
+// Pairwise distance matrix
+arma::mat dist_mat(const arma::mat& alignment)
 {
-   // Calculate k_hat
-   // https://en.wikipedia.org/wiki/Tajima's_D#Mathematical_details
-   size_t num_samples = alignment.n_rows;
+   arma::mat distances = arma::zeros(alignment.n_rows, alignment.n_rows);
 
-   double d_sum = 0;
-   int d_tot = 0;
+   size_t num_samples = alignment.n_rows;
    for (size_t i = 0; i < num_samples; i++)
    {
       for (size_t j = i+1; j < num_samples; j++)
       {
-         d_sum += dot(alignment.row(i) - alignment.row(j), alignment.row(i) - alignment.row(j));
-         d_tot++;
+         distances(i,j) = dot(alignment.row(i) - alignment.row(j), alignment.row(i) - alignment.row(j));
+         distances(j,i) = distances(i,j);
       }
    }
+   return distances;
+}
 
-   double k_hat = d_sum/d_tot;
-
+// Calculate D from k_hat (using dist mat above) and sites
+// https://en.wikipedia.org/wiki/Tajima's_D#Mathematical_details
+double calc_D(const double k_hat, size_t num_samples, std::vector<long int>& positions, const int verbose)
+{
    // Calculate S
    auto unique_sites = std::unique(positions.begin(), positions.end());
    double S = std::distance(positions.begin(), unique_sites);

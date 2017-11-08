@@ -34,8 +34,9 @@ extern const std::string VERSION;
 
 // tajima.cpp
 std::tuple<long int,std::vector<int>> readCsvLine(std::string& line);
-double D_subsample(const arma::mat& alignment, const arma::uvec& sampled_indices, const std::vector<long int>& positions, const int verbose);
-double calc_D(const arma::mat& alignment, std::vector<long int>& positions, const int verbose);
+double D_subsample(const arma::mat& alignment, const arma::mat& distances, const arma::uvec& sampled_indices, const std::vector<long int>& positions, const int verbose);
+arma::mat dist_mat(const arma::mat& alignment);
+double calc_D(const double k_hat, size_t num_samples, std::vector<long int>& positions, const int verbose);
 
 // cmdLine.cpp
 int parseCommandLine (int argc, char *argv[], boost::program_options::variables_map& vm);
